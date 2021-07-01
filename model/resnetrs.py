@@ -9,8 +9,8 @@ from functools import partial
 import torch.nn as nn
 import torch.nn.functional as F
 
-from base import StemBlock, BasicBlock, Bottleneck, Downsample
-from util import get_pretrained_weights
+from .base import StemBlock, BasicBlock, Bottleneck, Downsample
+from .util import get_pretrained_weights
 
 
 PRETRAINED_MODELS = [
@@ -21,23 +21,23 @@ PRETRAINED_MODELS = [
 ]
 
 PRETRAINED_URLS = {
-    'resnetrs50': '',
-    'resnetrs101': '',
-    'resnetrs152': '',
-    'resnetrs200': '',
+    'resnetrs50': 'https://github.com/nachiket273/pytorch_resnet_rs/releases/download/v.0.0.1/resnetrs50_c578f2df.pth',
+    'resnetrs101': 'https://github.com/nachiket273/pytorch_resnet_rs/releases/download/v.0.0.1/resnetrs101_7c6d6621.pth',
+    'resnetrs152': 'https://github.com/nachiket273/pytorch_resnet_rs/releases/download/v.0.0.1/resnetrs152_3c858ed0.pth',
+    'resnetrs200': 'https://github.com/nachiket273/pytorch_resnet_rs/releases/download/v.0.0.1/resnetrs200_fddd5b5f.pth',
 }
 
 DEFAULT_CFG = {
     'in_ch': 3,
     'num_classes': 1000,
-    'stem_width': 64,
+    'stem_width': 32,
     'down_kernel_size': 1,
     'actn': partial(nn.ReLU, inplace=True),
     'norm_layer': nn.BatchNorm2d,
     'zero_init_last_bn': True,
     'seblock': True,
     'reduction_ratio': 0.25,
-    'dropout_ratio': 0.,
+    'dropout_ratio': 0.25,
     'conv1': 'conv1',
     'classifier': 'fc'
 }
@@ -170,6 +170,7 @@ class ResnetRS():
         cfg = ResnetRS._get_cfg(name)
         in_ch = cfg['in_ch'] if in_ch == 0 else in_ch
         num_classes = cfg['num_classes'] if num_classes == 0 else num_classes
+        cfg['strict'] = True
 
         url = ResnetRS._get_url(name)
         model = Resnet(cfg['block'], cfg['layers'], num_classes=num_classes,

@@ -118,7 +118,7 @@ class Bottleneck(nn.Module):
         self.actn1 = actn(inplace=True)
 
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride,
-                               padding=1, bias=True)
+                               padding=1, bias=False)
         self.bn2 = norm_layer(planes)
         self.actn2 = actn(inplace=True)
 
