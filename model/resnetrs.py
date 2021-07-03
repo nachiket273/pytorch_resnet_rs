@@ -38,7 +38,7 @@ DEFAULT_CFG = {
     'seblock': True,
     'reduction_ratio': 0.25,
     'dropout_ratio': 0.25,
-    'conv1': 'conv1',
+    'conv1': 'conv1.conv1.0',
     'classifier': 'fc'
 }
 
@@ -95,9 +95,6 @@ class Resnet(nn.Module):
 
     def forward(self, x):
         x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.actn1(x)
-        x = self.maxpool(x)
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
