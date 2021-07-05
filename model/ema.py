@@ -29,7 +29,7 @@ class EMA:
         parameters = list(parameters)
         self.decay_rate = decay_rate
         self.num_updates = num_updates
-        self.shadow_params = [p.clone().detach() for p in self.parameters
+        self.shadow_params = [p.clone().detach() for p in parameters
                               if p.requires_grad]
         self.saved_params = parameters
 
@@ -78,6 +78,7 @@ class EMA:
         """
         Copy the saved parameters to model parameters.
         """
+        parameters = list(parameters)
         if self.saved_params is None:
             raise ValueError(
                 "No saved parameters found."
