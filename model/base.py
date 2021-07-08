@@ -3,6 +3,7 @@
 Building block classes for resnet.
 
 """
+import torch
 import torch.nn as nn
 
 
@@ -55,7 +56,8 @@ class BasicBlock(nn.Module):
 
     def __init__(self, inplanes, planes, stride=1, norm_layer=nn.BatchNorm2d,
                  actn=nn.ReLU, downsample=None, seblock=True,
-                 reduction_ratio=0.25, zero_init_last_bn=True):
+                 reduction_ratio=0.25, stochastic_depth_ratio=0.0,
+                 zero_init_last_bn=True):
         super().__init__()
         outplanes = planes * self.expansion
         self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=3, stride=stride,
@@ -74,6 +76,7 @@ class BasicBlock(nn.Module):
         if downsample is not None:
             self.downsample = downsample
             self.down = True
+        self.drop_path = DropPath(stochastic_depth_ratio)
         self.init_weights(zero_init_last_bn)
 
     def init_weights(self, zero_init_last_bn=True):
@@ -99,6 +102,8 @@ class BasicBlock(nn.Module):
         x = self.bn2(x)
         if self.seblock:
             x = self.se(x)
+        if self.drop_path.drop_prob > 0.0:
+            x = self.drop_path(x)
         x += shortcut
         x = self.actn2(x)
 
@@ -110,7 +115,8 @@ class Bottleneck(nn.Module):
 
     def __init__(self, inplanes, planes, stride=1, norm_layer=nn.BatchNorm2d,
                  actn=nn.ReLU, downsample=None, seblock=True,
-                 reduction_ratio=0.25, zero_init_last_bn=True):
+                 reduction_ratio=0.25, stochastic_depth_ratio=0.0,
+                 zero_init_last_bn=True):
         super().__init__()
         outplanes = planes * self.expansion
         self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False)
@@ -132,6 +138,7 @@ class Bottleneck(nn.Module):
         if downsample is not None:
             self.downsample = downsample
             self.down = True
+        self.drop_path = DropPath(stochastic_depth_ratio)
         self.init_weights(zero_init_last_bn)
 
     def init_weights(self, zero_init_last_bn=True):
@@ -161,6 +168,8 @@ class Bottleneck(nn.Module):
         x = self.bn3(x)
         if self.seblock:
             x = self.se(x)
+        if self.drop_path.drop_prob:
+            x = self.drop_path(x)
         x += shortcut
         x = self.actn3(x)
 
@@ -214,3 +223,24 @@ class SEBlock(nn.Module):
         x = self.conv2(x)
         x = self.sigmoid(x)
         return orig * x
+
+
+class DropPath(nn.Module):
+    """
+    Implementation of paper https://arxiv.org/pdf/1603.09382v3.pdf
+    From: https://github.com/rwightman/pytorch-image-models/blob/6d8272e92c3d5f13a9fdd91dfe1eb7fae6784589/timm/models/layers/drop.py#L160
+    """
+    def __init__(self, drop_prob=None):
+        super().__init__()
+        self.drop_prob = drop_prob
+
+    def forward(self, x):
+        if self.drop_prob is None or self.drop_prob == 0 or not self.training:
+            return x
+        keep_prob = 1 - self.drop_prob
+        shape = (x.shape[0],)+(1,)*(x.ndim-1)
+        rand_tensor = keep_prob + torch.rand(shape, dtype=x.dtype,
+                                             device=x.device)
+        rand_tensor = rand_tensor.floor_()
+        out = x.div(keep_prob) * rand_tensor
+        return out

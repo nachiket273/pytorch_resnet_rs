@@ -39,6 +39,7 @@ DEFAULT_CFG = {
     'reduction_ratio': 0.25,
     'dropout_ratio': 0.25,
     'conv1': 'conv1.conv1.0',
+    'stochastic_depth_rate': 0.0,
     'classifier': 'fc'
 }
 
@@ -47,12 +48,13 @@ class Resnet(nn.Module):
     def __init__(self, block, layers, num_classes=1000, in_ch=3, stem_width=64,
                  down_kernel_size=1, actn=nn.ReLU, norm_layer=nn.BatchNorm2d,
                  seblock=True, reduction_ratio=0.25, dropout_ratio=0.,
-                 zero_init_last_bn=True):
+                 stochastic_depth_ratio=0., zero_init_last_bn=True):
         super().__init__()
         self.num_classes = num_classes
         self.norm_layer = norm_layer
         self.actn = actn
         self.dropout_ratio = float(dropout_ratio)
+        self.stochastic_depth_ratio = stochastic_depth_ratio
         self.zero_init_last_bn = zero_init_last_bn
         self.conv1 = StemBlock(in_ch, stem_width, norm_layer, actn)
         channels = [64, 128, 256, 512]
@@ -63,6 +65,8 @@ class Resnet(nn.Module):
 
     def make_layers(self, block, nlayers, channels, inplanes, kernel_size=1,
                     seblock=True, reduction_ratio=0.25):
+        tot_nlayers = sum(nlayers)
+        layer_idx = 0
         for idx, (nlayer, channel) in enumerate(zip(nlayers, channels)):
             name = "layer" + str(idx+1)
             stride = 1 if idx == 0 else 2
@@ -76,15 +80,19 @@ class Resnet(nn.Module):
             for layer_idx in range(nlayer):
                 downsample = downsample if layer_idx == 0 else None
                 stride = stride if layer_idx == 0 else 1
+                drop_ratio = (self.stochastic_depth_ratio*layer_idx
+                              / (tot_nlayers-1))
                 blocks.append(block(inplanes, channel, stride, self.norm_layer,
                                     self.actn, downsample, seblock,
-                                    reduction_ratio, self.zero_init_last_bn))
+                                    reduction_ratio, drop_ratio,
+                                    self.zero_init_last_bn))
 
                 inplanes = channel * block.expansion
+                layer_idx += 1
 
             self.add_module(*(name, nn.Sequential(*blocks)))
 
-    def init_weights(self, zero_init_last_bn=True):
+    def init_weights(self):
         for _, module in self.named_modules():
             if isinstance(module, nn.Conv2d):
                 nn.init.kaiming_normal_(module.weight, mode='fan_out',
@@ -117,6 +125,7 @@ class ResnetRS():
                      actn=partial(nn.ReLU, inplace=True),
                      norm_layer=nn.BatchNorm2d, seblock=True,
                      reduction_ratio=0.25, dropout_ratio=0.,
+                     stochastic_depth_rate=0.0,
                      zero_init_last_bn=True):
 
         return Resnet(block, layers, num_classes=num_classes, in_ch=in_ch,
@@ -124,6 +133,7 @@ class ResnetRS():
                       actn=actn, norm_layer=norm_layer, seblock=seblock,
                       reduction_ratio=reduction_ratio,
                       dropout_ratio=dropout_ratio,
+                      stochastic_depth_ratio=stochastic_depth_rate,
                       zero_init_last_bn=zero_init_last_bn)
 
     @classmethod
@@ -156,6 +166,7 @@ class ResnetRS():
             cfg['layers'] = [3, 8, 36, 3]
         elif name == 'resnetrs200':
             cfg['layers'] = [3, 24, 36, 3]
+            cfg['stochastic_depth_rate'] = 0.1
         return cfg
 
     @classmethod
@@ -175,7 +186,9 @@ class ResnetRS():
                        down_kernel_size=cfg['down_kernel_size'],
                        actn=cfg['actn'], norm_layer=cfg['norm_layer'],
                        seblock=cfg['seblock'],
+                       dropout_ratio=cfg['dropout_ratio'],
                        reduction_ratio=cfg['reduction_ratio'],
+                       stochastic_depth_ratio=cfg['stochastic_depth_rate'],
                        zero_init_last_bn=cfg['zero_init_last_bn'])
 
         state_dict = get_pretrained_weights(url, cfg, num_classes, in_ch,
