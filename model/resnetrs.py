@@ -170,7 +170,7 @@ class ResnetRS():
         return cfg
 
     @classmethod
-    def create_pretrained(cls, name, in_ch=0, num_classes=0):
+    def create_pretrained(cls, name, in_ch=0, num_classes=0, drop_rate=0.0):
         if not ResnetRS._is_valid_model_name(name):
             raise ValueError('Available pretrained models: ' +
                              ', '.join(PRETRAINED_MODELS))
@@ -179,6 +179,8 @@ class ResnetRS():
         in_ch = cfg['in_ch'] if in_ch == 0 else in_ch
         num_classes = cfg['num_classes'] if num_classes == 0 else num_classes
         cfg['strict'] = True
+        if drop_rate > 0.0:
+            cfg['stochastic_depth_rate'] = drop_rate
 
         url = ResnetRS._get_url(name)
         model = Resnet(cfg['block'], cfg['layers'], num_classes=num_classes,
