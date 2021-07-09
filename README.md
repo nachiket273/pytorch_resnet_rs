@@ -14,6 +14,8 @@ Repository also contains implementation for: <br>
 1) Exponential Moving Averages<br>
 2) RandAugment
 <br>
+<br>
+Stochastic depth implementation is from <a href="https://github.com/rwightman/pytorch-image-models">timm</br>
 
 ## Usage
 ### ResNetRS
